@@ -1,57 +1,34 @@
-const express = require("express");
-const cors = require("cors");
-const fetch = require("node-fetch");
+const express = require('express');
+const cors = require('cors');
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const app = express();
-
 app.use(cors());
 app.use(express.json());
 
-app.get("/", (req, res) => {
-  res.send("AI Server Running 🚀");
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+app.get('/', (req, res) => {
+    res.send("Alpha AI Server is Live! 🚀");
 });
 
-app.post("/chat", async (req, res) => {
-  try {
-    const message = req.body.message;
-
-    if (!message) {
-      return res.json({ reply: "Say something 😢" });
+app.post('/chat', async (req, res) => {
+    try {
+        // Updated model call for version 0.11.0+
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        
+        const result = await model.generateContent(req.body.message);
+        const response = await result.response;
+        const text = response.text();
+        
+        res.json({ reply: text });
+    } catch (e) {
+        console.error("Error details:", e);
+        res.status(500).json({ reply: "Gemini Error: " + e.message });
     }
-
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer " + process.env.GROQ_API_KEY
-      },
-      body: JSON.stringify({
-        model: "llama-3.1-70b-versatile",
-        messages: [
-          { role: "system", content: "You are a helpful smart AI. Understand typos and reply clearly." },
-          { role: "user", content: message }
-        ]
-      })
-    });
-
-    const data = await response.json();
-
-    let reply = "No response 😢";
-
-    if (data && data.choices && data.choices[0]) {
-      reply = data.choices[0].message.content;
-    }
-
-    res.json({ reply });
-
-  } catch (err) {
-    console.log(err);
-    res.json({ reply: "Server error 😢" });
-  }
 });
 
-const PORT = process.env.PORT || 3000;
-
-app.listen(PORT, () => {
-  console.log("Server running");
+const port = process.env.PORT || 3000;
+app.listen(port, "0.0.0.0", () => {
+    console.log("Server running on port " + port);
 });
